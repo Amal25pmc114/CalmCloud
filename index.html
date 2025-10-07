@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calm in the Storm</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      text-align: center;
+      background: linear-gradient(to bottom, #d0f0ff, #a0d8f1);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden; /* Prevent scrollbars */
+    }
+
+    h1, h2 {
+      color: #333;
+    }
+
+    .screen {
+      display: none;
+      width: 100%;
+      max-width: 500px;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .screen.active {
+      display: block;
+      margin: auto;
+    }
+
+    button {
+      background: #4fa3d1;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      margin: 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    button:hover {
+      background: #367ba5;
+    }
+
+    input[type="text"] {
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        width: 80%;
+        margin-bottom: 10px;
+    }
+
+    #gameCanvas {
+      background: #f0f8ff;
+      border: 2px solid #4fa3d1;
+      border-radius: 12px;
+      display: block;
+      margin: 20px auto;
+      width: 100%;
+      max-width: 400px;
+      height: auto;
+      aspect-ratio: 1 / 1;
+    }
+
+    #score {
+      font-size: 18px;
+      margin: 10px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .star-rating {
+      display: inline-block;
+    }
+
+    .star {
+      font-size: 36px; /* Increased size */
+      cursor: pointer;
+      color: #ccc; /* Changed default color to grey */
+      transition: all 0.2s ease-in-out; /* Smoother transition */
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1); /* Subtle default shadow */
+    }
+
+    .star:hover {
+      transform: scale(1.2); /* Add a little hover effect */
+    }
+
+    .star.selected {
+      color: gold;
+      text-shadow: 0 0 8px rgba(255, 215, 0, 0.8); /* Add a glow effect */
+    }
+
+    .popup {
+      background: rgba(255, 255, 255, 0.95);
+      border: 2px solid #4fa3d1;
+      padding: 20px;
+      border-radius: 12px;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      max-width: 400px;
+      text-align: center;
+      z-index: 10;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .validation-message {
+        color: #d9534f;
+        min-height: 20px;
+        font-weight: bold;
+    }
+
+    #controls {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    #final-screen .final-card {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      border: 2px solid #4fa3d1;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    #final-screen h2 {
+        font-size: 2em;
+        margin-bottom: 20px;
+    }
+
+    #final-screen p {
+        font-size: 1.1em;
+        line-height: 1.6;
+        margin-bottom: 30px;
+    }
+
+    #visitor-count {
+        margin-top: 20px;
+        color: #555;
+        font-style: italic;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Start Screen -->
+  <div id="start-screen" class="screen active">
+    <h1>☁️ Calm in the Storm ☁️</h1>
+    <label for="player-name">Enter your name:</label><br>
+    <input type="text" id="player-name" placeholder="Your name here" /><br>
+    <p>How happy are you right now?</p>
+    <div id="before-rating" class="star-rating"></div><br>
+    <p id="start-validation" class="validation-message"></p>
+    <button onclick="startGame()">Start Game</button>
+    <p id="visitor-count">Loading visitor count...</p>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="game-screen" class="screen">
+    <div id="score">Drops Collected: 0</div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">
+      <button onclick="moveLeft()">⬅️ Left</button>
+      <button onclick="moveRight()">➡️ Right</button>
+    </div>
+    <button onclick="quitGame()">Quit</button>
+  </div>
+
+  <!-- Popup for scenario -->
+  <div id="scenario-popup" class="popup hidden">
+    <p id="scenario-text"></p>
+    <button onclick="showTip()">Next</button>
+  </div>
+  
+  <!-- Popup for tip (auto-closing) -->
+  <div id="tip-popup" class="popup hidden">
+      <p id="tip-text"></p>
+  </div>
+
+  <!-- Result Screen -->
+  <div id="result-screen" class="screen">
+    <h2>🌟 Thank You 🌟</h2>
+    <p>How happy are you now?</p>
+    <div id="after-rating" class="star-rating"></div><br>
+    <p id="end-validation" class="validation-message"></p>
+    <button onclick="showFinal()">Finish</button>
+  </div>
+
+  <!-- Final Message -->
+  <div id="final-screen" class="screen">
+    <div class="final-card">
+      <h2>💙 Stay Strong 💙</h2>
+      <p id="final-message"></p>
+      <button onclick="playAgain()">Play Again</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+    // --- Firebase Setup ---
+    let db;
+    try {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'calm-in-the-storm';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        const auth = getAuth(app);
+
+        if (typeof __initial_auth_token !== 'undefined') {
+            await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+            await signInAnonymously(auth);
+        }
+        
+        initializeCounter(appId);
+    } catch (error) {
+        console.error("Firebase initialization failed:", error);
+        document.getElementById('visitor-count').innerText = 'Visitor count unavailable.';
+    }
+
+    async function initializeCounter(appId) {
+        const counterRef = doc(db, `artifacts/${appId}/public/data/stats`, 'visitorCounter');
+        
+        // Use sessionStorage to count a user only once per session
+        if (!sessionStorage.getItem('counted')) {
+            const docSnap = await getDoc(counterRef);
+            if (docSnap.exists()) {
+                await updateDoc(counterRef, { count: increment(1), lastVisit: serverTimestamp() });
+            } else {
+                await setDoc(counterRef, { count: 1, lastVisit: serverTimestamp() });
+            }
+            sessionStorage.setItem('counted', 'true');
+        }
+
+        // Display the count
+        const finalDoc = await getDoc(counterRef);
+        if (finalDoc.exists()) {
+            document.getElementById('visitor-count').innerText = `Total Visitors: ${finalDoc.data().count}`;
+        } else {
+            document.getElementById('visitor-count').innerText = `You are the first visitor!`;
+        }
+    }
+
+
+    // --- Game Logic ---
+    let playerName = "";
+    let dropsCollected = 0;
+    let happinessBefore = 0;
+    let happinessAfter = 0;
+    let gameInterval;
+    let paused = false;
+
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    
+    function resizeCanvas() {
+        const screenDiv = document.getElementById('game-screen');
+        const size = Math.min(screenDiv.clientWidth * 0.9, 400);
+        canvas.width = size;
+        canvas.height = size;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+
+    // Cloud player
+    let cloud = { x: 180, y: 350, w: 60, h: 30 };
+
+    // Raindrops
+    let raindrops = [];
+
+    // Scenarios and tips
+    const scenarios = [
+      { scenario: "You feel nervous after hearing bad news.", tip: "Take a deep breath and remind yourself — you are safe right now." },
+      { scenario: "You miss something you lost in the disaster.", tip: "Think of one small thing you still have that brings you comfort." },
+      { scenario: "Everyone around you seems stressed.", tip: "Stay calm and breathe slowly — your staying calm helps others too." },
+      { scenario: "You haven’t smiled in a while.", tip: "Think of one kind or happy memory — let it make you smile again." },
+      { scenario: "A loud sound brings back scary memories.", tip: "Close your eyes and say softly, ‘That moment was in the past. I’m safe now.’" },
+      { scenario: "You’ve been helping others all day.", tip: "Pause, drink some water, and rest — you deserve care too." },
+      { scenario: "You feel tired of seeing sad news.", tip: "Take a short break. Look outside, stretch, or notice something peaceful." },
+      { scenario: "You can’t fall asleep easily.", tip: "Try slow breathing — in for 4 seconds, out for 4 seconds." },
+      { scenario: "Crowds and noise make you uneasy.", tip: "Step aside for a moment and breathe quietly until you feel steady." },
+      { scenario: "You feel like no one understands you.", tip: "Talk to someone you trust — sharing helps lighten your heart." },
+      { scenario: "You miss your old routine.", tip: "Make one small new habit — a cup of tea, music, or a walk." },
+      { scenario: "You’re surrounded by panic.", tip: "Repeat to yourself: ‘I am calm, I am safe.’" },
+      { scenario: "You woke up feeling sad.", tip: "Be gentle with yourself — feelings change, calm will return." },
+      { scenario: "You miss your favorite peaceful place.", tip: "Close your eyes and imagine being there for a moment." },
+      { scenario: "You feel like you must fix everything.", tip: "You’re doing enough — even small help makes a difference." },
+      { scenario: "Waiting for updates makes you anxious.", tip: "Look around — name 3 things you see, 2 you hear, 1 you feel." },
+      { scenario: "You suddenly feel like crying.", tip: "It’s okay to cry — tears help release stress." },
+      { scenario: "You helped someone smile today.", tip: "Take a moment to smile too — you deserve that peace." },
+      { scenario: "You keep watching for danger even when things are calm.", tip: "Tell yourself gently: ‘I am safe right now.’" },
+      { scenario: "You feel bad for being calm when others are upset.", tip: "Peace is not selfish — it spreads calm around you." }
+    ];
+    
+    let availableScenarios = [];
+    let currentScenario = null;
+    
+    function refillScenarios() {
+        availableScenarios = [...scenarios];
+    }
+
+    function createStars(containerId, isBefore) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+      for (let i = 1; i <= 5; i++) {
+        const star = document.createElement("span");
+        star.innerHTML = "★";
+        star.classList.add("star");
+        star.onclick = () => {
+          if (isBefore) happinessBefore = i;
+          else happinessAfter = i;
+          updateStars(containerId, i);
+        };
+        container.appendChild(star);
+      }
+    }
+    function updateStars(containerId, count) {
+      const stars = document.querySelectorAll(`#${containerId} .star`);
+      stars.forEach((star, i) => {
+        star.classList.toggle("selected", i < count);
+      });
+    }
+
+    function showValidationMessage(id, message) {
+        const el = document.getElementById(id);
+        el.innerText = message;
+        setTimeout(() => { el.innerText = "" }, 3000);
+    }
+    
+    // Make functions global so inline onclick handlers can find them
+    window.startGame = function() {
+      playerName = document.getElementById("player-name").value || "Player";
+      if (happinessBefore === 0) {
+        showValidationMessage("start-validation", "Please rate your happiness!");
+        return;
+      }
+      
+      document.getElementById("start-screen").classList.remove("active");
+      document.getElementById("game-screen").classList.add("active");
+
+      resizeCanvas(); 
+      
+      cloud.x = canvas.width / 2 - cloud.w / 2;
+      cloud.y = canvas.height - 70;
+
+      dropsCollected = 0;
+      raindrops = [];
+      refillScenarios();
+      gameInterval = setInterval(updateGame, 50);
+    }
+    
+    window.quitGame = function() {
+      clearInterval(gameInterval);
+      document.getElementById("game-screen").classList.remove("active");
+      document.getElementById("result-screen").classList.add("active");
+    }
+
+    window.showFinal = function() {
+      if (happinessAfter === 0) { 
+        showValidationMessage("end-validation", "Please rate your happiness!");
+        return; 
+      }
+
+      document.getElementById("result-screen").classList.remove("active");
+      document.getElementById("final-screen").classList.add("active");
+      document.getElementById("final-message").innerText =
+        `${playerName}, before playing you rated your happiness as ${happinessBefore}★. 
+        After playing, you rated it as ${happinessAfter}★. 
+        You collected ${dropsCollected} drops. Thank you for taking care of your mental health! 💙`;
+    }
+
+    window.playAgain = function() {
+        document.getElementById("final-screen").classList.remove("active");
+        document.getElementById("start-screen").classList.add("active");
+        dropsCollected = 0;
+        happinessBefore = 0;
+        happinessAfter = 0;
+        document.getElementById("player-name").value = "";
+        updateStars("before-rating", 0);
+        updateStars("after-rating", 0);
+    }
+    
+    window.moveLeft = function() { if (!paused && cloud.x > 0) cloud.x -= 20; }
+    window.moveRight = function() { if (!paused && cloud.x < canvas.width - (canvas.width * 0.2)) cloud.x += 20; }
+    window.showTip = function() {
+      document.getElementById("scenario-popup").classList.add("hidden");
+      
+      document.getElementById("tip-text").innerText = currentScenario.tip;
+      const tipPopup = document.getElementById("tip-popup");
+      tipPopup.classList.remove("hidden");
+      
+      setTimeout(() => {
+        tipPopup.classList.add("hidden");
+        paused = false;
+      }, 7000);
+    }
+
+    function updateGame() {
+      if (paused) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const cloudSize = canvas.width * 0.2;
+      ctx.font = `${cloudSize}px Arial`;
+      ctx.fillText("☁️", cloud.x, cloud.y + cloudSize * 0.4);
+
+      if (Math.random() < 0.05) {
+        raindrops.push({ x: Math.random() * (canvas.width - 20), y: 0 });
+      }
+
+      for (let i = raindrops.length - 1; i >= 0; i--) {
+        let r = raindrops[i];
+        r.y += 5;
+        const dropSize = canvas.width * 0.05;
+        ctx.font = `${dropSize}px Arial`;
+        ctx.fillText("💧", r.x, r.y);
+
+        if (r.y > canvas.height) {
+            raindrops.splice(i, 1);
+            continue;
+        }
+
+        const cloudRight = cloud.x + cloudSize * 0.8;
+        const cloudBottom = cloud.y + cloudSize * 0.5;
+        if (r.x > cloud.x && r.x < cloudRight && r.y > cloud.y && r.y < cloudBottom) {
+          dropsCollected++;
+          raindrops.splice(i, 1);
+          triggerScenario();
+        }
+      }
+
+      document.getElementById("score").innerText = `Drops Collected: ${dropsCollected}`;
+    }
+
+    function triggerScenario() {
+      paused = true;
+      if (availableScenarios.length === 0) {
+        refillScenarios();
+      }
+      
+      const randomIndex = Math.floor(Math.random() * availableScenarios.length);
+      currentScenario = availableScenarios.splice(randomIndex, 1)[0];
+      
+      document.getElementById("scenario-text").innerText = currentScenario.scenario;
+      document.getElementById("scenario-popup").classList.remove("hidden");
+    }
+
+    // Initialize stars
+    createStars("before-rating", true);
+    createStars("after-rating", false);
+  </script>
+</body>
+</html>
